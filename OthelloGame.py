@@ -44,8 +44,8 @@ class OthelloGame:
                 self.turnPlayer = 'white'
     
     def RunGame(self):
-        #self.IsAI['black'] = input('Is Black an AI?[y/n]: ')
-        #self.IsAI['white'] = input('Is White an AI?[y/n]: ')
+        self.IsAI['black'] = input('Is Black an AI?[y/n]: ')
+        self.IsAI['white'] = input('Is White an AI?[y/n]: ')
         while(not self.game.EvaluateEnd()):
             print()
             print()
