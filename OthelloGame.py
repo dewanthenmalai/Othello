@@ -60,7 +60,6 @@ class OthelloGame:
             if self.IsAI[self.turnPlayer] == 'y':
                 bestMove = self.AI[self.turnPlayer].GetBestMove(self.game)
                 self.game.ApplyMove(bestMove, self.turnPlayer)
-                time.sleep(2)
             else:
                 self.PrintMoves(legalMoves)
                 moveNum = input(f'Select move for {self.turnPlayer}:')

@@ -15,7 +15,7 @@ class OthelloAI:
     def __init__(self, AIcolor, heuristic=None):
         self.color = AIcolor
         if heuristic is None:
-            self.heuristic = np.full((8,8), 100, dtype=int)
+            self.heuristic = np.full((8,8), 100)
             for i in range(8):
                 self.heuristic[0, i] = 200
                 self.heuristic[7, i] = 200
@@ -60,9 +60,9 @@ class OthelloAI:
         legalMoves = node.board.EvaluateMoves(maxPlayer)
         if not legalMoves:
             newGame = Othello()
-            newGame.blackBoard = copy.deepcopy(board.blackBoard)
-            newGame.whiteBoard = copy.deepcopy(board.whiteBoard)
-            return self.Minimax(self.MinimaxNode(newGame, 0, node.move), depth-1, alpha, beta, self.OppositeColor(maxPlayer, firstIter))
+            newGame.blackBoard = copy.deepcopy(node.board.blackBoard)
+            newGame.whiteBoard = copy.deepcopy(node.board.whiteBoard)
+            return self.Minimax(self.MinimaxNode(newGame, 0, node.move), depth-1, alpha, beta, self.OppositeColor(maxPlayer), firstIter)
         if maxPlayer == self.color:
             node.value = -np.inf
             childNode = None
@@ -92,7 +92,7 @@ class OthelloAI:
         i = 1
         bestNode = None
         startTime = time.time_ns()
-        while (time.time_ns() - startTime) < 250000000:
+        while (time.time_ns() - startTime) < 3000000000:
             startNode = self.MinimaxNode(board, -np.inf, None)
             bestNode = self.Minimax(startNode, i, -np.inf, np.inf, self.color, True)
             i += 1
