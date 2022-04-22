@@ -1,63 +1,64 @@
 import numpy as np
 import sys
+import multiprocessing as mp
 from Othello import Othello
 from OthelloAI import OthelloAI
 from time import process_time
 
-class OthelloHGA:
+def ValidateInputs(args):
+    return (len(args) == 3) and (int(args[0]) > 0) and (int(args[1]) > 0) and (int(args[2]) > 0)
     
-    def SwapPlayer(self, turnPlayer):
-        match turnPlayer:
-            case 'white':
-                return 'black'
-            case 'black':
-                return 'white'
-    
-    def RunGame(self, heuristic1, heuristic2):
-        AI = {
-            'white': OthelloAI('white', heuristic=heuristic2),
-            'black': OthelloAI('black', heuristic=heuristic1)
-        }
-        game = Othello()
-        turnPlayer = 'black'
-        while(not game.EvaluateEnd()):
-            legalMoves = game.EvaluateMoves(turnPlayer)
-            if not legalMoves:
-                turnPlayer = self.SwapPlayer(turnPlayer)
-                continue
-            bestMove = AI[turnPlayer].GetBestMove(game)
-            game.ApplyMove(bestMove, turnPlayer)
-            self.SwapPlayer(turnPlayer)
-        winner = game.EvaluateWinner()
-        match winner:
-            case 'white':
-                return -1
-            case 'black':
-                return 1
-            case 'draw':
-                return 0
-    
-    def RunSingleGeneration(self, startHeuristic, population, matchCount):
-        heuristics = [startHeuristic]
-        wins = np.ones(population)
-        for i in range(population-1):
-            newHeuristic = startHeuristic + np.random.normal(0, 20, size=(8,8))
-            heuristics.append(newHeuristic)
-        for matchNum in range(matchCount):
-            for i in range(population):
-                for j in range(population): # need to give each heuristic a chance to go first so games are doubled up
-                    winner = self.RunGame(heuristics[i], heuristics[j])
-                    match winner:
-                        case 1:
-                            wins[i] += 1
-                        case -1:
-                            wins[j] += 1
-        
-        return np.average(heuristics, weights=wins, axis=0)
+def SwapPlayer(turnPlayer):
+    match turnPlayer:
+        case 'white':
+            return 'black'
+        case 'black':
+            return 'white'
+
+def RunGame(player1, player2, heuristics):
+    AI = {
+        'white': OthelloAI('white', heuristic=heuristics[player2]),
+        'black': OthelloAI('black', heuristic=heuristics[player1])
+    }
+    game = Othello()
+    turnPlayer = 'black'
+    while(not game.EvaluateEnd()):
+        legalMoves = game.EvaluateMoves(turnPlayer)
+        if not legalMoves:
+            turnPlayer = SwapPlayer(turnPlayer)
+            continue
+        bestMove = AI[turnPlayer].GetBestMove(game)
+        game.ApplyMove(bestMove, turnPlayer)
+        SwapPlayer(turnPlayer)
+    winner = game.EvaluateWinner()
+    match winner:
+        case 'white':
+            return player2
+        case 'black':
+            return player1
+        case 'draw':
+            return None
+
+def RunSingleGeneration(startHeuristic, population, matchCount):
+    heuristics = [startHeuristic]
+    wins = np.ones(population)
+    #I'm only using half the available CPUs because I'm running this locally and don't want to commit 100% of machine resources to this
+    pool = mp.Pool(mp.cpu_count()//2)
+    winners = []
+    for i in range(population-1):
+        newHeuristic = startHeuristic + np.random.normal(0, 25, size=(8,8))
+        heuristics.append(newHeuristic)
+    for matchNum in range(matchCount):
+        results = [pool.apply_async(RunGame, args=(i, j, heuristics)) for j in range(population) for i in range(population)]
+        output = [p.get() for p in results]
+        winners.append(list(filter(None, output)))
+    for index in winners:
+        wins[index] += 1
+    pool.close()
+    pool.join()
+    return np.average(heuristics, weights=wins, axis=0)
     
 def main(generations, genPop, genIter):
-    processStart = process_time()
-    GARunner = OthelloHGA()
     # set up simple/naive initial heuristic
     heuristic = np.full((8,8), 100)
     for i in range(8):
@@ -71,13 +72,16 @@ def main(generations, genPop, genIter):
     heuristic[7,7] = 500
     
     for i in range(generations):
-        heuristic = GARunner.RunSingleGeneration(heuristic, genPop, genIter)
+        print(f'Generation: {i+1}')
+        heuristic = RunSingleGeneration(heuristic, genPop, genIter)
     
-    processEnd = process_time()
-    print(f'Total time: {processEnd-processStart}')
+    
     print(heuristic)
     
 if __name__ == '__main__':
-    if len(sys.argv) != 4:
+    if not ValidateInputs(sys.argv[1:]):
         exit(-1)
+    processStart = process_time()
     main(int(sys.argv[1]), int(sys.argv[2]), int(sys.argv[3]))
+    processEnd = process_time()
+    print(f'Total time: {processEnd-processStart}')
